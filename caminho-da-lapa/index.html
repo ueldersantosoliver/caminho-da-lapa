@@ -432,6 +432,10 @@
  const SUPABASE_URL = 'https://szsbddscynocmoobbrgg.supabase.co';
  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6c2JkZHNjeW5vY21vb2JicmdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczNDc3MjAsImV4cCI6MjEwMjkyMzcyMH0.SxTLWgRg-ZCoWJMr69BkQlehRle1BYgUegYGUsApIDM';
  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+ /* Login do administrador — controla quem pode gerenciar a Comunidade e
+    adicionar novos itens ao Explorar. Fica salvo só neste navegador. */
+ const ADMIN_EMAIL = 'redteb3@gmail.com';
+ const ADMIN_PASSWORD = 'fatinha123';
 </script>
 </head>
 <body data-theme="dark">
@@ -444,6 +448,7 @@
     <span class="pb-ic" id="points-badge-ic"></span><span id="points-badge-count">0</span>
    </button>
    <button class="icon-btn" id="btn-text" onclick="toggleLarge()" title="Letras grandes" aria-label="Aumentar letras">A+</button>
+   <button class="icon-btn" id="btn-admin" onclick="openAdmin()" title="Área do administrador" aria-label="Área do administrador"></button>
    <button class="icon-btn sos-btn" id="btn-sos" onclick="openEmergency()" title="Emergência" aria-label="Emergência"></button>
   </div>
  </div>
@@ -746,6 +751,42 @@
   </div>
  </div>
 
+ <!-- MODAL: ÁREA DO ADMINISTRADOR -->
+ <div class="modal-overlay" id="admin-overlay">
+  <div class="modal-backdrop" onclick="closeAdmin()"></div>
+  <div class="modal-sheet">
+   <div class="modal-head">
+    <div class="modal-title" id="admin-title">Área do administrador</div>
+    <button class="modal-close" onclick="closeAdmin()" aria-label="Fechar" id="admin-close-ic"></button>
+   </div>
+   <div class="modal-body" id="admin-body"></div>
+  </div>
+ </div>
+
+ <!-- MODAL: EDITAR PUBLICAÇÃO (admin) -->
+ <div class="modal-overlay" id="adminpost-overlay">
+  <div class="modal-backdrop" onclick="closeAdminEditPost()"></div>
+  <div class="modal-sheet">
+   <div class="modal-head">
+    <div class="modal-title">Editar publicação</div>
+    <button class="modal-close" onclick="closeAdminEditPost()" aria-label="Fechar" id="adminpost-close-ic"></button>
+   </div>
+   <div class="modal-body" id="adminpost-body"></div>
+  </div>
+ </div>
+
+ <!-- MODAL: EDITAR ITEM DO EXPLORAR (admin) -->
+ <div class="modal-overlay" id="builtinitem-overlay">
+  <div class="modal-backdrop" onclick="closeBuiltinEdit()"></div>
+  <div class="modal-sheet">
+   <div class="modal-head">
+    <div class="modal-title">Editar item</div>
+    <button class="modal-close" onclick="closeBuiltinEdit()" aria-label="Fechar" id="builtinitem-close-ic"></button>
+   </div>
+   <div class="modal-body" id="builtinitem-body"></div>
+  </div>
+ </div>
+
  <!-- MODAL: EDITAR FOTO DE PERFIL (emoji + cor) -->
  <div class="modal-overlay" id="avatar-overlay">
   <div class="modal-backdrop" onclick="closeAvatarEdit()"></div>
@@ -1025,6 +1066,7 @@ renderOptions('opt-goals', OPTIONS.goals, 'goals', true);
 function paintStaticIcons(){
  
  document.getElementById('btn-text').innerHTML = '<span style="font-family:var(--font-mono); font-size:.72rem; font-weight:700;">A+</span>';
+ document.getElementById('btn-admin').innerHTML = ic('shield',16);
  document.getElementById('arrow-ic').innerHTML = ic('chevronRight',16);
  document.getElementById('weather-ic').innerHTML = ic('sun',18);
  document.getElementById('welcome-eyebrow').innerHTML = ic('pin',13) + '<span>Bom Jesus da Lapa · Bahia</span>';
@@ -1047,6 +1089,7 @@ function paintStaticIcons(){
  document.getElementById('share-close-ic').innerHTML = ic('x', 16);
  document.getElementById('newpost-close-ic').innerHTML = ic('x', 16);
  document.getElementById('avatar-close-ic').innerHTML = ic('x', 16);
+ document.getElementById('builtinitem-close-ic').innerHTML = ic('x', 16);
  document.getElementById('visit-prompt-close-ic').innerHTML = ic('x', 16);
  document.getElementById('visit-prompt-ic').innerHTML = ic('camera', 24);
  updateNotifButton();
@@ -1146,14 +1189,22 @@ function getDayOutdoorStops(d){
   .map(([time,key])=>({time, name:PLACES[key].name}));
 }
 function renderWeatherForDay(d){
- const profile = WEATHER_PROFILES[(d-1) % WEATHER_PROFILES.length];
  const outdoorStops = getDayOutdoorStops(d);
  const icEl = document.getElementById('weather-ic');
  const tempEl = document.getElementById('weather-temp');
  const subEl = document.getElementById('weather-sub');
  if(!icEl || !tempEl || !subEl) return;
+ let profile, isReal = false;
+ if(realWeatherData && realWeatherData.daily[d-1]){
+  const rd = realWeatherData.daily[d-1];
+  const info = weatherCodeInfo(rd.code);
+  profile = {temp:rd.max, min:rd.min, condition:info.label, icon:info.icon, rain: rd.pop!=null && rd.pop>=40 ? "moderada à tarde" : "baixa"};
+  isReal = true;
+ } else {
+  profile = WEATHER_PROFILES[(d-1) % WEATHER_PROFILES.length];
+ }
  icEl.innerHTML = ic(profile.icon, 18);
- tempEl.textContent = `${profile.temp}°C máx · ${profile.min}°C mín — ${profile.condition}`;
+ tempEl.textContent = `${profile.temp}°C máx · ${profile.min}°C mín — ${profile.condition}${isReal?'':' (estimativa)'}`;
  if(outdoorStops.length){
   const parts = outdoorStops.map(s=>`${s.time} (${s.name})`).join(', ');
   subEl.textContent = profile.rain === "baixa"
@@ -1161,6 +1212,82 @@ function renderWeatherForDay(d){
    : `Chance de chuva à tarde — leve uma capa leve para: ${parts}.`;
  } else {
   subEl.textContent = "Dia com paradas majoritariamente cobertas — tempo tranquilo para caminhar pela cidade.";
+ }
+}
+
+/* ---------------- clima em tempo real (Open-Meteo, sem chave de API) ---------------- */
+const LAPA_LAT = -13.2519, LAPA_LON = -43.4183;
+let realWeatherData = null; // {current:{temp,code}, daily:[{date,max,min,code,pop}]}
+function weatherCodeInfo(code){
+ const map = {
+  0:{label:"Céu limpo", icon:"sun"},
+  1:{label:"Predominantemente limpo", icon:"sun"},
+  2:{label:"Parcialmente nublado", icon:"cloud"},
+  3:{label:"Nublado", icon:"cloud"},
+  45:{label:"Neblina", icon:"cloud"},
+  48:{label:"Neblina com geada", icon:"cloud"},
+  51:{label:"Garoa fraca", icon:"cloud"},
+  53:{label:"Garoa moderada", icon:"cloud"},
+  55:{label:"Garoa forte", icon:"cloud"},
+  56:{label:"Garoa congelante", icon:"cloud"},
+  57:{label:"Garoa congelante forte", icon:"cloud"},
+  61:{label:"Chuva fraca", icon:"cloud"},
+  63:{label:"Chuva moderada", icon:"cloud"},
+  65:{label:"Chuva forte", icon:"cloud"},
+  66:{label:"Chuva congelante", icon:"cloud"},
+  67:{label:"Chuva congelante forte", icon:"cloud"},
+  71:{label:"Neve fraca", icon:"cloud"},
+  73:{label:"Neve moderada", icon:"cloud"},
+  75:{label:"Neve forte", icon:"cloud"},
+  80:{label:"Pancadas de chuva fracas", icon:"cloud"},
+  81:{label:"Pancadas de chuva moderadas", icon:"cloud"},
+  82:{label:"Pancadas de chuva fortes", icon:"cloud"},
+  95:{label:"Trovoadas", icon:"cloud"},
+  96:{label:"Trovoadas com granizo", icon:"cloud"},
+  99:{label:"Trovoadas com granizo forte", icon:"cloud"}
+ };
+ return map[code] || {label:"Tempo estável", icon:"sun"};
+}
+function renderCurrentWeatherStrip(){
+ if(!realWeatherData) return;
+ const icEl = document.getElementById('weather-ic');
+ const tempEl = document.getElementById('weather-temp');
+ const subEl = document.getElementById('weather-sub');
+ if(!icEl || !tempEl || !subEl) return;
+ // não sobrescreve se o roteiro já estiver aberto mostrando o dia específico
+ if(window._currentDay) return;
+ const info = weatherCodeInfo(realWeatherData.current.code);
+ icEl.innerHTML = ic(info.icon, 18);
+ tempEl.textContent = `${realWeatherData.current.temp}°C agora — ${info.label}`;
+ const today = realWeatherData.daily[0];
+ if(today){
+  const rainNote = (today.pop!=null && today.pop>=40)
+   ? ` Chance de chuva de ${today.pop}% — leve uma capa leve.`
+   : " Sem previsão de chuva relevante.";
+  subEl.textContent = `Máx. ${today.max}°C / mín. ${today.min}°C hoje.${rainNote}`;
+ }
+}
+async function fetchRealWeather(){
+ try{
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAPA_LAT}&longitude=${LAPA_LON}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=7`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Falha ao consultar previsão do tempo');
+  const data = await res.json();
+  realWeatherData = {
+   current: {temp: Math.round(data.current.temperature_2m), code: data.current.weather_code},
+   daily: (data.daily.time || []).map((d,i)=>({
+    date: d,
+    max: Math.round(data.daily.temperature_2m_max[i]),
+    min: Math.round(data.daily.temperature_2m_min[i]),
+    code: data.daily.weather_code[i],
+    pop: data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[i] : null
+   }))
+  };
+  renderCurrentWeatherStrip();
+  if(window._currentDay) renderWeatherForDay(window._currentDay);
+ }catch(e){
+  // mantém o valor estimado padrão já exibido caso a previsão em tempo real falhe
+  console.warn('Clima em tempo real indisponível, usando estimativa padrão.', e);
  }
 }
 
@@ -1903,42 +2030,186 @@ function setExploreTab(id){
 function mapBtn(name){
  return `<button class="go" onclick="window.open('https://www.google.com/maps/search/${encodeURIComponent(name+' Bom Jesus da Lapa BA')}','_blank')" aria-label="Ver no mapa">${ic('pin',16)}</button>`;
 }
+function extraCard(x){
+ const subParts = [];
+ if(x.location) subParts.push(x.location);
+ subParts.push(x.desc || 'Adicionado pela administração');
+ return `
+   <div class="list-card">
+    <div class="thumb" ${x.photo?`style="${thumbBg(x.photo)}"`:''}>${x.photo?'':ic('map',22)}</div>
+    <div class="body"><div class="name">${escapeHtml(x.name)}</div><div class="sub">${escapeHtml(subParts.join(' · '))}</div></div>
+    ${mapBtn(x.location || x.name)}
+    ${isAdmin()?`<button class="post-del" onclick="deleteAdminExtra('${x.id}')" aria-label="Remover item">${ic('x',16)}</button>`:''}
+   </div>`;
+}
 function renderExploreList(tab){
  const el = document.getElementById('explore-list');
+ const extrasHtml = loadExtras().filter(x=>x.tab===tab).map(extraCard).join('');
  if(tab==='turismo' || tab==='restaurantes'){
   const typeMap = {turismo:'turismo', restaurantes:'restaurante'};
   const filtered = Object.entries(PLACES).filter(([k,p])=>p.type===typeMap[tab]);
-  el.innerHTML = filtered.map(([key,p])=>`
+  el.innerHTML = filtered.map(([key,p])=>{
+   const id = 'place:'+key;
+   const ov = getOverride(id);
+   const dispName = ov.name || p.name;
+   const dispDesc = ov.desc || `${p.cat} · ${p.time}`;
+   const dispLoc = ov.location || '';
+   const dispSub = dispLoc ? `${dispLoc} · ${dispDesc}` : dispDesc;
+   const thumbStyle = ov.photo ? thumbBg(ov.photo) : thumbBg(p.img);
+   return `
    <div class="list-card">
-    <div class="thumb" style="${thumbBg(p.img)}">${p.danger?`<div class="danger-thumb-badge" onclick="event.stopPropagation(); openDangerAlert('${key}')" role="button" aria-label="Alerta de risco">${ic('alert',14)}</div>`:''}</div>
+    <div class="thumb" style="${thumbStyle}">${p.danger?`<div class="danger-thumb-badge" onclick="event.stopPropagation(); openDangerAlert('${key}')" role="button" aria-label="Alerta de risco">${ic('alert',14)}</div>`:''}</div>
     <div class="body">
-     <div class="name">${p.name}</div><div class="sub">${p.cat} · ${p.time}</div>
+     <div class="name">${escapeHtml(dispName)}</div><div class="sub">${escapeHtml(dispSub)}</div>
      ${p.danger?`<button class="danger-chip" onclick="openDangerAlert('${key}')">${ic('alert',12)}<span>Alerta de risco</span></button>`:''}
     </div>
-    ${mapBtn(p.name)}
-   </div>`).join('');
+    ${mapBtn(dispLoc || dispName)}
+    ${isAdmin()?`<button class="post-del" onclick="openBuiltinEdit('${id}')" aria-label="Editar item">${ic('edit',16)}</button>`:''}
+   </div>`;
+  }).join('') + extrasHtml;
  } else if(tab==='hospedagem'){
-  el.innerHTML = HOSPEDAGEM.map(h=>`
+  el.innerHTML = HOSPEDAGEM.map((h,idx)=>{
+   const id = 'hosp:'+idx;
+   const ov = getOverride(id);
+   const dispName = ov.name || h.name;
+   const dispDesc = ov.desc || `${h.tipo} · ${h.preco} — ${h.desc}`;
+   const dispLoc = ov.location || '';
+   const dispSub = dispLoc ? `${dispLoc} · ${dispDesc}` : dispDesc;
+   return `
    <div class="list-card">
-    <div class="thumb">${ic('hotel',22)}</div>
-    <div class="body"><div class="name">${h.name}</div><div class="sub">${h.tipo} · ${h.preco} — ${h.desc}</div></div>
-    ${mapBtn(h.name)}
-   </div>`).join('');
+    <div class="thumb" ${ov.photo?`style="${thumbBg(ov.photo)}"`:''}>${ov.photo?'':ic('hotel',22)}</div>
+    <div class="body"><div class="name">${escapeHtml(dispName)}</div><div class="sub">${escapeHtml(dispSub)}</div></div>
+    ${mapBtn(dispLoc || dispName)}
+    ${isAdmin()?`<button class="post-del" onclick="openBuiltinEdit('${id}')" aria-label="Editar item">${ic('edit',16)}</button>`:''}
+   </div>`;
+  }).join('') + extrasHtml;
  } else if(tab==='eventos'){
-  el.innerHTML = EVENTOS.map(e=>`
+  el.innerHTML = EVENTOS.map((e,idx)=>{
+   const id = 'evento:'+idx;
+   const ov = getOverride(id);
+   const dispName = ov.name || e.name;
+   const dispDesc = ov.desc || `${e.quando} · ${e.local}`;
+   const dispLoc = ov.location || '';
+   const dispSub = dispLoc ? `${dispLoc} · ${dispDesc}` : dispDesc;
+   return `
    <div class="list-card">
-    <div class="thumb">${ic('church',22)}</div>
-    <div class="body"><div class="name">${e.name}</div><div class="sub">${e.quando} · ${e.local}</div></div>
-    ${mapBtn(e.local)}
-   </div>`).join('');
+    <div class="thumb" ${ov.photo?`style="${thumbBg(ov.photo)}"`:''}>${ov.photo?'':ic('church',22)}</div>
+    <div class="body"><div class="name">${escapeHtml(dispName)}</div><div class="sub">${escapeHtml(dispSub)}</div></div>
+    ${mapBtn(dispLoc || e.local)}
+    ${isAdmin()?`<button class="post-del" onclick="openBuiltinEdit('${id}')" aria-label="Editar item">${ic('edit',16)}</button>`:''}
+   </div>`;
+  }).join('') + extrasHtml;
  } else if(tab==='servicos'){
-  el.innerHTML = SERVICOS.map(s=>`
+  el.innerHTML = SERVICOS.map((s,idx)=>{
+   const id = 'servico:'+idx;
+   const ov = getOverride(id);
+   const dispName = ov.name || s.name;
+   const dispDesc = ov.desc || s.cat;
+   const dispLoc = ov.location || '';
+   const dispSub = dispLoc ? `${dispLoc} · ${dispDesc}` : dispDesc;
+   return `
    <div class="list-card">
-    <div class="thumb">${ic('building',22)}</div>
-    <div class="body"><div class="name">${s.name}</div><div class="sub">${s.cat}</div></div>
-    ${mapBtn(s.name)}
-   </div>`).join('');
+    <div class="thumb" ${ov.photo?`style="${thumbBg(ov.photo)}"`:''}>${ov.photo?'':ic('building',22)}</div>
+    <div class="body"><div class="name">${escapeHtml(dispName)}</div><div class="sub">${escapeHtml(dispSub)}</div></div>
+    ${mapBtn(dispLoc || dispName)}
+    ${isAdmin()?`<button class="post-del" onclick="openBuiltinEdit('${id}')" aria-label="Editar item">${ic('edit',16)}</button>`:''}
+   </div>`;
+  }).join('') + extrasHtml;
  }
+}
+
+/* ---- admin: editar itens já existentes no app (turismo, restaurantes, hospedagem, eventos, serviços) ---- */
+function getBuiltinBase(id){
+ const sep = id.indexOf(':');
+ const type = id.slice(0, sep);
+ const keyOrIdx = id.slice(sep+1);
+ if(type==='place'){
+  const p = PLACES[keyOrIdx];
+  return p ? {name:p.name, desc:`${p.cat} · ${p.time}`, img:p.img} : null;
+ }
+ if(type==='hosp'){
+  const h = HOSPEDAGEM[+keyOrIdx];
+  return h ? {name:h.name, desc:`${h.tipo} · ${h.preco} — ${h.desc}`, img:null} : null;
+ }
+ if(type==='evento'){
+  const e = EVENTOS[+keyOrIdx];
+  return e ? {name:e.name, desc:`${e.quando} · ${e.local}`, img:null} : null;
+ }
+ if(type==='servico'){
+  const s = SERVICOS[+keyOrIdx];
+  return s ? {name:s.name, desc:s.cat, img:null} : null;
+ }
+ return null;
+}
+let builtinEditingId = null;
+let builtinEditPhotoData = null;
+function openBuiltinEdit(id){
+ if(!isAdmin()) return;
+ builtinEditingId = id;
+ builtinEditPhotoData = null;
+ renderBuiltinEditForm();
+ document.getElementById('builtinitem-overlay').classList.add('open');
+}
+function closeBuiltinEdit(){
+ document.getElementById('builtinitem-overlay').classList.remove('open');
+ builtinEditingId = null;
+}
+function renderBuiltinEditForm(){
+ const base = getBuiltinBase(builtinEditingId);
+ const bodyEl = document.getElementById('builtinitem-body');
+ if(!base){ bodyEl.innerHTML = `<div class="welcome-note">Item não encontrado.</div>`; return; }
+ const ov = getOverride(builtinEditingId);
+ const hasEdits = !!(ov.name || ov.desc || ov.location || ov.photo);
+ const currentPhoto = builtinEditPhotoData || ov.photo || base.img || null;
+ bodyEl.innerHTML = `
+  <div class="modal-sub">Editando: <b>${escapeHtml(base.name)}</b>${hasEdits?' (com edições salvas)':''}</div>
+  <div class="form-field"><label>Nome</label><input type="text" id="bi-name" value="${escapeHtml(ov.name || base.name)}"></div>
+  <div class="form-field"><label>Localização</label><input type="text" id="bi-location" value="${escapeHtml(ov.location || '')}" placeholder="Ex: Rua, bairro ou ponto de referência"></div>
+  <div class="form-field"><label>Descrição / detalhes</label><input type="text" id="bi-desc" value="${escapeHtml(ov.desc || base.desc)}"></div>
+  <div class="form-field">
+   <label>Foto</label>
+   <input type="file" accept="image/*" id="bi-photo" onchange="previewBuiltinEditPhoto(event)">
+   <div class="np-photo-preview" id="bi-photo-preview" ${currentPhoto?`style="background-image:url('${currentPhoto}')"`:''}>${currentPhoto?'':'Nenhuma foto selecionada'}</div>
+  </div>
+  <div class="nav-row"><button class="btn btn-primary" onclick="saveBuiltinEdit()">Salvar alterações</button></div>
+  ${hasEdits ? `<div class="nav-row" style="margin-top:8px;"><button class="btn btn-ghost" style="flex:1;" onclick="resetBuiltinEdit()">Restaurar original</button></div>` : ''}
+ `;
+}
+function previewBuiltinEditPhoto(e){
+ const file = e.target.files[0];
+ if(!file) return;
+ if(!file.type.startsWith('image/')){ showToast('Escolha um arquivo de imagem', 'alert'); return; }
+ if(file.size > 4*1024*1024){ showToast('Escolha uma foto menor (até 4MB)', 'alert'); return; }
+ const reader = new FileReader();
+ reader.onload = ()=>{
+  builtinEditPhotoData = reader.result;
+  const prev = document.getElementById('bi-photo-preview');
+  if(prev){ prev.style.backgroundImage = `url('${builtinEditPhotoData}')`; prev.textContent=''; }
+ };
+ reader.readAsDataURL(file);
+}
+function saveBuiltinEdit(){
+ if(!isAdmin() || !builtinEditingId) return;
+ const name = document.getElementById('bi-name').value.trim();
+ const location = document.getElementById('bi-location').value.trim();
+ const desc = document.getElementById('bi-desc').value.trim();
+ if(!name){ showToast('Digite o nome do item', 'alert'); return; }
+ const overrides = loadOverrides();
+ const existing = overrides[builtinEditingId] || {};
+ overrides[builtinEditingId] = { name, location, desc, photo: builtinEditPhotoData || existing.photo || null };
+ saveOverrides(overrides);
+ closeBuiltinEdit();
+ showToast('Item atualizado', 'edit');
+ if(typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
+}
+function resetBuiltinEdit(){
+ if(!isAdmin() || !builtinEditingId) return;
+ const overrides = loadOverrides();
+ delete overrides[builtinEditingId];
+ saveOverrides(overrides);
+ closeBuiltinEdit();
+ showToast('Item restaurado ao original', 'x');
+ if(typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
 }
 
 /* ---------------- settings list ---------------- */
@@ -2185,6 +2456,8 @@ Base de conhecimento (JSON): ${buildKnowledgeBase()}`;
    nas mesmas chaves que antes eram usadas no localStorage) ---- */
 let usersCache = {};
 let postsCache = [];
+let extrasCache = [];
+let overridesCache = {};
 let communityDataReady = false;
 
 async function kvGet(key, fallback){
@@ -2199,12 +2472,16 @@ async function kvSet(key, value){
 }
 
 async function initCommunityData(){
- const [u, p] = await Promise.all([
+ const [u, p, e, ov] = await Promise.all([
   kvGet('lapa_community_users', {}),
-  kvGet('lapa_community_posts', [])
+  kvGet('lapa_community_posts', []),
+  kvGet('lapa_admin_extras', []),
+  kvGet('lapa_admin_overrides', {})
  ]);
  usersCache = u || {};
  postsCache = p || [];
+ extrasCache = e || [];
+ overridesCache = ov || {};
  communityDataReady = true;
 }
 
@@ -2214,6 +2491,8 @@ function startCommunityPolling(){
   await initCommunityData();
   const commEl = document.getElementById('community');
   if(commEl && !commEl.hidden && !commEl.classList.contains('hidden')) renderCommunity();
+  const explEl = document.getElementById('explore');
+  if(explEl && !explEl.hidden && !explEl.classList.contains('hidden') && typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
  }, 15000);
 }
 
@@ -2221,6 +2500,11 @@ function loadUsers(){ return usersCache; }
 function saveUsers(u){ usersCache = u; kvSet('lapa_community_users', u); }
 function loadPosts(){ return postsCache; }
 function savePosts(p){ postsCache = p; kvSet('lapa_community_posts', p).catch(()=>{ showToast('Não foi possível salvar (sem conexão)', 'alert'); }); }
+function loadExtras(){ return extrasCache; }
+function saveExtras(e){ extrasCache = e; kvSet('lapa_admin_extras', e).catch(()=>{ showToast('Não foi possível salvar (sem conexão)', 'alert'); }); }
+function loadOverrides(){ return overridesCache; }
+function saveOverrides(o){ overridesCache = o; kvSet('lapa_admin_overrides', o).catch(()=>{ showToast('Não foi possível salvar (sem conexão)', 'alert'); }); }
+function getOverride(id){ return overridesCache[id] || {}; }
 
 /* ---- selo de "explorador": gamificação leve para quem posta em vários lugares diferentes ---- */
 const EXPLORER_TIERS = [
@@ -2245,6 +2529,173 @@ function renderExplorerBadge(author){
 }
 function getCurrentUser(){ try{ return localStorage.getItem('lapa_community_session') || null; }catch(e){ return null; } }
 function setCurrentUser(name){ try{ if(name) localStorage.setItem('lapa_community_session', name); else localStorage.removeItem('lapa_community_session'); }catch(e){} }
+
+/* ---------------- área do administrador ---------------- */
+function isAdmin(){ try{ return localStorage.getItem('lapa_admin_session') === '1'; }catch(e){ return false; } }
+function setAdminSession(on){ try{ if(on) localStorage.setItem('lapa_admin_session', '1'); else localStorage.removeItem('lapa_admin_session'); }catch(e){} }
+function openAdmin(){
+ renderAdminModal();
+ document.getElementById('admin-overlay').classList.add('open');
+}
+function closeAdmin(){
+ document.getElementById('admin-overlay').classList.remove('open');
+}
+function renderAdminModal(){
+ const titleEl = document.getElementById('admin-title');
+ const bodyEl = document.getElementById('admin-body');
+ if(!isAdmin()){
+  titleEl.textContent = 'Entrar como administrador';
+  bodyEl.innerHTML = `
+   <div class="modal-sub">Acesso restrito à administração do Caminhos da Lapa.</div>
+   <div class="form-field"><label>E-mail</label><input type="email" id="admin-email" placeholder="seuemail@exemplo.com"></div>
+   <div class="form-field"><label>Senha</label><input type="password" id="admin-pass" placeholder="Senha" onkeydown="if(event.key==='Enter') submitAdminLogin()"></div>
+   <div class="nav-row"><button class="btn btn-primary" onclick="submitAdminLogin()">Entrar</button></div>`;
+  return;
+ }
+ titleEl.textContent = 'Painel do administrador';
+ const extras = loadExtras();
+ bodyEl.innerHTML = `
+  <div class="modal-sub">Você está logado como administrador. Pode gerenciar a Comunidade (editar ou apagar qualquer publicação e comentário) e adicionar novos itens ao Explorar.</div>
+  <div class="nav-row"><button class="btn btn-ghost" style="flex:1;" onclick="logoutAdmin()">Sair da área do administrador</button></div>
+  <div style="height:18px;"></div>
+  <div class="q-title" style="font-size:1.05rem; margin-bottom:10px;">Adicionar novo item ao Explorar</div>
+  <div class="form-field">
+   <label>Categoria</label>
+   <select id="admin-extra-tab">
+    <option value="turismo">Turismo</option>
+    <option value="restaurantes">Restaurantes</option>
+    <option value="hospedagem">Hospedagem</option>
+    <option value="eventos">Eventos</option>
+    <option value="servicos">Serviços</option>
+   </select>
+  </div>
+  <div class="form-field"><label>Nome</label><input type="text" id="admin-extra-name" placeholder="Nome do local ou serviço"></div>
+  <div class="form-field"><label>Localização</label><input type="text" id="admin-extra-location" placeholder="Ex: Rua, bairro ou ponto de referência"></div>
+  <div class="form-field"><label>Descrição / detalhes</label><input type="text" id="admin-extra-desc" placeholder="Ex: categoria · tempo, ou uma frase curta"></div>
+  <div class="form-field">
+   <label>Foto</label>
+   <input type="file" accept="image/*" id="admin-extra-photo" onchange="previewAdminExtraPhoto(event)">
+   <div class="np-photo-preview" id="admin-extra-photo-preview">${adminExtraPhotoData?'':'Nenhuma foto selecionada'}</div>
+  </div>
+  <div class="nav-row"><button class="btn btn-primary" onclick="submitAdminExtra()">${ic('map',16)} Adicionar item</button></div>
+  <div style="height:20px;"></div>
+  <div class="q-title" style="font-size:1.05rem; margin-bottom:10px;">Itens adicionados por você</div>
+  <div id="admin-extras-list">${
+   extras.length ? extras.map(x=>`
+    <div class="list-card">
+     <div class="thumb" ${x.photo?`style="${thumbBg(x.photo)}"`:''}>${x.photo?'':ic('map',20)}</div>
+     <div class="body"><div class="name">${escapeHtml(x.name)}</div><div class="sub">${escapeHtml(EXPLORE_TABS.find(t=>t.id===x.tab)?.label || x.tab)}${x.location?' · '+escapeHtml(x.location):''}${x.desc?' · '+escapeHtml(x.desc):''}</div></div>
+     <button class="post-del" onclick="deleteAdminExtra('${x.id}')" aria-label="Remover item">${ic('x',16)}</button>
+    </div>`).join('') : `<div class="welcome-note" style="text-align:left;">Nenhum item adicionado ainda.</div>`
+  }</div>`;
+ if(adminExtraPhotoData){
+  const prev = document.getElementById('admin-extra-photo-preview');
+  if(prev){ prev.style.backgroundImage = `url('${adminExtraPhotoData}')`; prev.textContent=''; }
+ }
+}
+let adminExtraPhotoData = null;
+function previewAdminExtraPhoto(e){
+ const file = e.target.files[0];
+ if(!file) return;
+ if(!file.type.startsWith('image/')){ showToast('Escolha um arquivo de imagem', 'alert'); return; }
+ if(file.size > 4*1024*1024){ showToast('Escolha uma foto menor (até 4MB)', 'alert'); return; }
+ const reader = new FileReader();
+ reader.onload = ()=>{
+  adminExtraPhotoData = reader.result;
+  const prev = document.getElementById('admin-extra-photo-preview');
+  if(prev){ prev.style.backgroundImage = `url('${adminExtraPhotoData}')`; prev.textContent=''; }
+ };
+ reader.readAsDataURL(file);
+}
+function submitAdminLogin(){
+ const email = (document.getElementById('admin-email').value || '').trim().toLowerCase();
+ const pass = document.getElementById('admin-pass').value || '';
+ if(email === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASSWORD){
+  setAdminSession(true);
+  showToast('Login de administrador realizado', 'shield');
+  renderAdminModal();
+  if(document.getElementById('community') && !document.getElementById('community').classList.contains('hidden')) renderCommunity();
+ } else {
+  showToast('E-mail ou senha incorretos', 'alert');
+ }
+}
+function logoutAdmin(){
+ setAdminSession(false);
+ renderAdminModal();
+ showToast('Você saiu da área do administrador', 'x');
+ if(document.getElementById('community') && !document.getElementById('community').classList.contains('hidden')) renderCommunity();
+}
+function submitAdminExtra(){
+ if(!isAdmin()) return;
+ const tab = document.getElementById('admin-extra-tab').value;
+ const name = document.getElementById('admin-extra-name').value.trim();
+ const location = document.getElementById('admin-extra-location').value.trim();
+ const desc = document.getElementById('admin-extra-desc').value.trim();
+ if(!name){ showToast('Digite o nome do item', 'alert'); return; }
+ const extras = loadExtras();
+ extras.push({id:'e'+Date.now()+Math.random().toString(36).slice(2,7), tab, name, location, desc, photo:adminExtraPhotoData, ts:Date.now()});
+ saveExtras(extras);
+ adminExtraPhotoData = null;
+ showToast('Item adicionado ao Explorar', 'map');
+ renderAdminModal();
+ if(typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
+}
+function deleteAdminExtra(id){
+ if(!isAdmin()) return;
+ saveExtras(loadExtras().filter(x=>x.id!==id));
+ renderAdminModal();
+ if(typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
+ showToast('Item removido', 'x');
+}
+
+/* ---- admin: editar publicação de qualquer romeiro ---- */
+let adminEditingPostId = null;
+function openAdminEditPost(id){
+ if(!isAdmin()) return;
+ const p = loadPosts().find(x=>x.id===id);
+ if(!p) return;
+ adminEditingPostId = id;
+ document.getElementById('adminpost-body').innerHTML = `
+  <div class="form-field"><label>Local</label><input type="text" id="adminpost-place" value="${escapeHtml(p.place)}"></div>
+  <div class="form-field"><label>Legenda</label><textarea id="adminpost-caption">${escapeHtml(p.caption||'')}</textarea></div>
+  <div class="nav-row"><button class="btn btn-primary" onclick="saveAdminEditPost()">Salvar alterações</button></div>`;
+ document.getElementById('adminpost-overlay').classList.add('open');
+}
+function closeAdminEditPost(){
+ document.getElementById('adminpost-overlay').classList.remove('open');
+ adminEditingPostId = null;
+}
+function saveAdminEditPost(){
+ if(!isAdmin() || !adminEditingPostId) return;
+ const posts = loadPosts();
+ const p = posts.find(x=>x.id===adminEditingPostId);
+ if(!p) return;
+ p.place = document.getElementById('adminpost-place').value.trim() || p.place;
+ p.caption = document.getElementById('adminpost-caption').value.trim();
+ p.editedByAdmin = true;
+ savePosts(posts);
+ closeAdminEditPost();
+ renderCommunity();
+ showToast('Publicação atualizada', 'edit');
+}
+function adminDeletePost(id){
+ if(!isAdmin()) return;
+ savePosts(loadPosts().filter(x=>x.id!==id));
+ renderCommunity();
+ showToast('Publicação removida pelo administrador', 'x');
+}
+function adminDeleteComment(postId, commentId){
+ if(!isAdmin()) return;
+ const posts = loadPosts();
+ const p = posts.find(x=>x.id===postId);
+ if(!p) return;
+ p.comments = p.comments.filter(x=>x.id!==commentId);
+ savePosts(posts);
+ renderPosts();
+ const el = document.getElementById('comments-'+postId);
+ if(el) el.style.display = 'block';
+ showToast('Comentário removido pelo administrador', 'x');
+}
 
 let authMode = 'login';
 function switchAuthTab(mode){
@@ -2294,16 +2745,19 @@ function getUserAvatar(name){
 }
 function renderAvatar(name, extraClass){
  const av = getUserAvatar(name);
+ if(av && av.photo){
+  return `<span class="post-avatar ${extraClass||''}" style="background-image:url('${av.photo}'); background-size:cover; background-position:center; background-color:var(--sand-2);"></span>`;
+ }
  const bg = (av && av.color) ? av.color : 'var(--river)';
  const content = (av && av.emoji) ? av.emoji : initials(name || '?');
  return `<span class="post-avatar ${extraClass||''}" style="background:${bg};">${content}</span>`;
 }
-let avatarPickState = {emoji:null, color:null};
+let avatarPickState = {emoji:null, color:null, photo:null};
 function openAvatarEdit(){
  const user = getCurrentUser();
  if(!user) return;
  const av = getUserAvatar(user) || {};
- avatarPickState = {emoji: av.emoji || null, color: av.color || AVATAR_COLORS[0]};
+ avatarPickState = {emoji: av.emoji || null, color: av.color || AVATAR_COLORS[0], photo: av.photo || null};
  renderAvatarEditForm();
  document.getElementById('avatar-overlay').classList.add('open');
 }
@@ -2313,9 +2767,15 @@ function closeAvatarEdit(){
 function renderAvatarEditForm(){
  const body = document.getElementById('avatar-body');
  const previewContent = avatarPickState.emoji || initials(getCurrentUser() || '?');
+ const previewStyle = avatarPickState.photo
+  ? `background-image:url('${avatarPickState.photo}'); background-size:cover; background-position:center;`
+  : `background:${avatarPickState.color};`;
  body.innerHTML = `
-  <div class="avatar-preview-big" id="avatar-preview" style="background:${avatarPickState.color};">${previewContent}</div>
-  <div class="avatar-picker-label">Cor de fundo</div>
+  <div class="avatar-preview-big" id="avatar-preview" style="${previewStyle}">${avatarPickState.photo?'':previewContent}</div>
+  <div class="avatar-picker-label">Foto do seu dispositivo</div>
+  <input type="file" accept="image/*" id="avatar-photo-input" onchange="previewAvatarPhoto(event)">
+  ${avatarPickState.photo ? `<div class="nav-row" style="margin-top:8px;"><button type="button" class="btn btn-ghost" style="flex:1;" onclick="removeAvatarPhoto()">Remover foto e usar iniciais/emoji</button></div>` : ''}
+  <div class="avatar-picker-label" style="margin-top:16px;">Cor de fundo ${avatarPickState.photo?'(usada se a foto for removida)':''}</div>
   <div class="color-grid" id="avatar-color-grid">
    ${AVATAR_COLORS.map(c=>`<button type="button" class="color-opt ${c===avatarPickState.color?'selected':''}" style="background:${c};" onclick="pickAvatarColor('${c}')" aria-label="Escolher cor"></button>`).join('')}
   </div>
@@ -2327,6 +2787,22 @@ function renderAvatarEditForm(){
   <div class="nav-row" style="margin-top:16px;">
    <button class="btn btn-primary" onclick="saveAvatarEdit()">Salvar</button>
   </div>`;
+}
+function previewAvatarPhoto(e){
+ const file = e.target.files[0];
+ if(!file) return;
+ if(!file.type.startsWith('image/')){ showToast('Escolha um arquivo de imagem', 'alert'); return; }
+ if(file.size > 4*1024*1024){ showToast('Escolha uma foto menor (até 4MB)', 'alert'); return; }
+ const reader = new FileReader();
+ reader.onload = ()=>{
+  avatarPickState.photo = reader.result;
+  renderAvatarEditForm();
+ };
+ reader.readAsDataURL(file);
+}
+function removeAvatarPhoto(){
+ avatarPickState.photo = null;
+ renderAvatarEditForm();
 }
 function pickAvatarColor(c){
  avatarPickState.color = c;
@@ -2342,7 +2818,7 @@ function saveAvatarEdit(){
  const users = loadUsers();
  const key = user.toLowerCase();
  if(!users[key]) return;
- users[key].avatar = {emoji: avatarPickState.emoji, color: avatarPickState.color};
+ users[key].avatar = {emoji: avatarPickState.emoji, color: avatarPickState.color, photo: avatarPickState.photo};
  saveUsers(users);
  closeAvatarEdit();
  renderCommunity();
@@ -2363,8 +2839,12 @@ function renderCommunity(){
  const authEl = document.getElementById('community-auth');
  const feedEl = document.getElementById('community-feed');
  if(!authEl || !feedEl) return;
+ const adminBanner = isAdmin() ? `
+  <div class="list-card" style="display:block; margin-bottom:14px;">
+   <div class="post-meta" style="margin-bottom:4px;">${ic('shield',14)}<span><b>Modo administrador ativo</b> — você pode editar ou apagar qualquer publicação e comentário abaixo.</span></div>
+  </div>` : '';
  if(!user){
-  authEl.innerHTML = `
+  authEl.innerHTML = adminBanner + `
    <div class="list-card" style="display:block;">
     <div class="modal-sub" style="margin-bottom:14px;">Crie um perfil simples com nome e senha para publicar fotos dos lugares que você visitar e interagir com outros romeiros.</div>
     <div class="subtabs" style="margin:0 0 16px;">
@@ -2376,10 +2856,10 @@ function renderCommunity(){
     <div class="nav-row"><button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()">Entrar</button></div>
     <div class="welcome-note" style="margin-top:10px;">Isso fica salvo apenas neste navegador — não é uma conta na internet.</div>
    </div>`;
-  feedEl.innerHTML = '';
+  if(isAdmin()){ feedEl.style.display=''; renderPosts(); } else { feedEl.innerHTML = ''; }
   return;
  }
- authEl.innerHTML = `
+ authEl.innerHTML = adminBanner + `
   <div class="community-topbar">
    <div class="community-user">${renderAvatar(user)}${escapeHtml(user)}${renderExplorerBadge(user)}</div>
    <div style="display:flex; align-items:center; gap:14px;">
@@ -2412,6 +2892,11 @@ function renderPosts(){
      <div class="post-meta">${ic('pin',11)}<span>${escapeHtml(p.place)} · ${timeAgo(p.ts)}</span></div>
     </div>
     ${isOwner?`<button class="post-del" onclick="deletePost('${p.id}')" aria-label="Excluir publicação">${ic('x',16)}</button>`:''}
+    ${(isAdmin() && !isOwner)?`<div class="comment-own-actions">
+     <button onclick="openAdminEditPost('${p.id}')" aria-label="Editar publicação (admin)">${ic('edit',15)}</button>
+     <button onclick="adminDeletePost('${p.id}')" aria-label="Excluir publicação (admin)">${ic('x',16)}</button>
+    </div>`:''}
+    ${isOwner&&isAdmin()?`<button onclick="openAdminEditPost('${p.id}')" aria-label="Editar publicação (admin)" class="post-del" style="margin-left:4px;">${ic('edit',15)}</button>`:''}
    </div>
    <div class="post-image" style="background-image:url('${p.image}')"></div>
    ${p.caption?`<div class="post-caption">${escapeHtml(p.caption)}</div>`:''}
@@ -2437,6 +2922,9 @@ function renderPosts(){
       ${isCommentOwner?`<div class="comment-own-actions">
        <button onclick="startEditComment('${p.id}','${c.id}')" aria-label="Editar comentário">${ic('edit',13)}</button>
        <button onclick="deleteComment('${p.id}','${c.id}')" aria-label="Apagar comentário">${ic('x',14)}</button>
+      </div>`:''}
+      ${(!isCommentOwner && isAdmin())?`<div class="comment-own-actions">
+       <button onclick="adminDeleteComment('${p.id}','${c.id}')" aria-label="Apagar comentário (admin)">${ic('x',14)}</button>
       </div>`:''}
      </div>`;
     }).join('')}
@@ -2618,9 +3106,13 @@ function submitNewPost(){
 
 /* ---------------- boot ---------------- */
 paintStaticIcons();
+fetchRealWeather();
+setInterval(fetchRealWeather, 15*60*1000); // atualiza o clima a cada 15 minutos
 initCommunityData().then(()=>{
  const commEl = document.getElementById('community');
  if(commEl && !commEl.hidden && !commEl.classList.contains('hidden')) renderCommunity();
+ const explEl = document.getElementById('explore');
+ if(explEl && !explEl.hidden && !explEl.classList.contains('hidden') && typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
 });
 startCommunityPolling();
 </script>
