@@ -65,7 +65,30 @@ Em **Settings > Domains** no Vercel, dá pra apontar um domínio próprio (ex: `
 
 ---
 
+## Área do administrador
+
+O app agora tem um botão discreto no topo (ícone de escudo, ao lado do "A+") que abre o login do administrador.
+
+- **E-mail:** `redteb3@gmail.com`
+- **Senha:** `fatinha123`
+
+Esse login e senha ficam fixos dentro do `index.html` (constantes `ADMIN_EMAIL` e `ADMIN_PASSWORD`, perto do topo do arquivo). Se quiser trocar depois, é só editar essas duas linhas e publicar de novo.
+
+Depois de logado (fica salvo neste navegador/celular até você clicar em "Sair"), o administrador pode:
+
+- Ir até a aba **Comunidade** e apagar ou editar (legenda e local) **qualquer** foto publicada por qualquer romeiro, e apagar qualquer comentário — mesmo sem criar um perfil de romeiro.
+- Abrir o painel do administrador (mesmo botão de escudo) e **adicionar novos itens** direto na aba **Explorar** (Turismo, Restaurantes, Hospedagem, Eventos ou Serviços), com nome e descrição. Esses itens ficam salvos no mesmo banco do Supabase e aparecem para todo mundo. Também é possível removê-los ali mesmo.
+
+> Assim como o restante do app, essa "senha de administrador" é uma proteção simples (mostrada no botão, guardada no navegador) — boa o bastante para controlar quem edita o conteúdo dentro do grupo de romeiros, mas não é uma autenticação de nível bancário. Ela não aparece em nenhuma tela pública, só quando alguém clica no botão do escudo e digita o e-mail/senha corretos.
+
+### Novidades desta versão
+
+- **Clima em tempo real:** a faixa de clima no topo do app e a previsão de cada dia do roteiro agora vêm da API pública Open-Meteo (não precisa de chave/cadastro), atualizando a cada 15 minutos. Se a internet falhar, o app volta a mostrar uma estimativa padrão para não quebrar a experiência.
+- **Itens do Explorar com foto e localização:** no painel do administrador, ao adicionar um item (Turismo, Restaurantes, Hospedagem, Eventos ou Serviços), agora dá pra preencher também **Localização** e enviar uma **Foto** do próprio computador/celular, além do nome e da descrição.
+- **Foto de perfil de verdade:** em "Editar foto" (Comunidade), qualquer romeiro agora pode enviar uma foto do próprio aparelho como avatar, além das opções antigas de cor + emoji (que continuam disponíveis como alternativa).
+- **Editar itens já existentes no Explorar:** o administrador agora vê um ícone de lápis em cada item das abas Turismo, Restaurantes, Hospedagem, Eventos e Serviços — inclusive os que já vinham prontos no app (Santuário, Gruta, hotéis, restaurantes etc). Ao clicar, dá pra alterar nome, localização, descrição e foto, e depois "Restaurar original" a qualquer momento caso queira desfazer.
+
 ### Limitações que valem saber
 - O "login" da comunidade continua sendo simples (nome + senha guardados em texto no banco) — bom o bastante para um app informal, mas não é autenticação de verdade.
-- Fotos são guardadas como imagem em base64 dentro do banco. Funciona bem para uso moderado; se o app crescer muito, o ideal futuramente é migrar para o Supabase Storage (upload de arquivo de verdade).
+- Fotos são guardadas como imagem em base64 dentro do banco (perfis, publicações e itens do Explorar — limite de 4MB por foto). Funciona bem para uso moderado; se o app crescer muito, o ideal futuramente é migrar para o Supabase Storage (upload de arquivo de verdade).
 - Os dados da comunidade são recarregados a cada 15 segundos (não é "tempo real" instantâneo, mas é suficiente para esse tipo de uso).
