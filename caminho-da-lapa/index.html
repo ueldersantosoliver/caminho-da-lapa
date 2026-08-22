@@ -62,6 +62,9 @@
  .icon-btn.on{background:var(--river); color:#fff;}
  .icon-btn.sos-btn{background:#D62828; color:#fff; box-shadow:0 3px 10px -4px rgba(214,40,40,.6);}
  .icon-btn.sos-btn:active{transform:scale(.92);}
+ .icon-btn{position:relative;}
+ .admin-report-badge{position:absolute; top:-2px; right:-2px; min-width:16px; height:16px; padding:0 3px; border-radius:8px; background:#D62828; color:#fff; font-size:.62rem; font-weight:700; display:none; align-items:center; justify-content:center; line-height:1;}
+ .admin-report-badge.on{display:flex;}
 
  /* ---- screens ---- */
  .screen{display:none; padding:0 0 100px;}
@@ -139,6 +142,9 @@
  .btn-primary{background:var(--river); color:#fff; box-shadow:0 8px 20px -8px rgba(30,95,116,.55);}
  .btn-primary:disabled{opacity:.4; box-shadow:none;}
  .btn-ghost{background:var(--sand-2); color:var(--ink);}
+ .btn-google{width:100%; background:var(--white); color:var(--ink); border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.06);}
+ .auth-divider{display:flex; align-items:center; gap:10px; margin:14px 0; color:var(--ink-soft); font-size:.8rem;}
+ .auth-divider::before, .auth-divider::after{content:""; flex:1; height:1px; background:var(--line);}
 
  /* ---- itinerary ---- */
  .hero-summary{background:linear-gradient(150deg, rgba(15,53,64,.95), rgba(30,95,116,.86)), var(--cover-url); background-size:cover, 130% auto; background-position:center, 50% 50%; color:#fff; border-radius:22px; padding:24px; margin:0 20px 22px; position:relative; overflow:hidden; box-shadow:var(--shadow-lg); animation:heroDrift2 24s ease-in-out infinite alternate;}
@@ -302,12 +308,12 @@
  .modal-overlay.open{pointer-events:auto;}
  .modal-backdrop{position:absolute; inset:0; background:rgba(15,12,8,.5); opacity:0; transition:opacity .3s ease;}
  .modal-overlay.open .modal-backdrop{opacity:1;}
- .modal-sheet{position:absolute; left:0; right:0; bottom:0; background:var(--sand); border-radius:24px 24px 0 0; box-shadow:0 -20px 50px -20px rgba(0,0,0,.4); transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.8,.25,1); overflow:hidden;}
+ .modal-sheet{position:absolute; left:0; right:0; bottom:0; max-height:88vh; background:var(--sand); border-radius:24px 24px 0 0; box-shadow:0 -20px 50px -20px rgba(0,0,0,.4); transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.8,.25,1); overflow:hidden; display:flex; flex-direction:column;}
  .modal-overlay.open .modal-sheet{transform:translateY(0);}
- .modal-head{padding:18px 20px 4px; display:flex; align-items:center; justify-content:space-between;}
+ .modal-head{padding:18px 20px 4px; display:flex; align-items:center; justify-content:space-between; flex:none;}
  .modal-title{font-family:var(--font-display); font-size:1.15rem; font-weight:600;}
  .modal-close{width:32px; height:32px; border-radius:50%; background:var(--sand-2); display:flex; align-items:center; justify-content:center; color:var(--ink); flex:none;}
- .modal-body{padding:14px 20px 26px;}
+ .modal-body{padding:14px 20px 26px; overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; overscroll-behavior:contain;}
  .modal-sub{color:var(--ink-soft); font-size:.85rem; margin-bottom:16px; line-height:1.5;}
 
  .stars-row{display:flex; gap:8px; justify-content:center; margin-bottom:18px;}
@@ -751,6 +757,18 @@
   </div>
  </div>
 
+ <!-- MODAL: DENUNCIAR FOTO OU COMENTÁRIO -->
+ <div class="modal-overlay" id="report-overlay">
+  <div class="modal-backdrop" onclick="closeReport()"></div>
+  <div class="modal-sheet">
+   <div class="modal-head">
+    <div class="modal-title">Denunciar para o administrador</div>
+    <button class="modal-close" onclick="closeReport()" aria-label="Fechar" id="report-close-ic"></button>
+   </div>
+   <div class="modal-body" id="report-body"></div>
+  </div>
+ </div>
+
  <!-- MODAL: ÁREA DO ADMINISTRADOR -->
  <div class="modal-overlay" id="admin-overlay">
   <div class="modal-backdrop" onclick="closeAdmin()"></div>
@@ -870,7 +888,8 @@ const ICON_PATHS = {
  edit:'<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7.5 18.5 3 20l1.5-4.5Z"/><path d="M14.5 5.5l4 4"/>',
  pause:'<rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/>',
  cloud:'<path d="M7 18.5a4.3 4.3 0 0 1-.4-8.6 5.6 5.6 0 0 1 10.8-1.6A4.6 4.6 0 0 1 17 18.5Z"/>',
- cloudRain:'<path d="M7 15.5a4.3 4.3 0 0 1-.4-8.6 5.6 5.6 0 0 1 10.8-1.6A4.6 4.6 0 0 1 17 15.5Z"/><path d="M8.5 18.5 7.5 21M12.5 18.5l-1 2.5M16.5 18.5l-1 2.5"/>'
+ cloudRain:'<path d="M7 15.5a4.3 4.3 0 0 1-.4-8.6 5.6 5.6 0 0 1 10.8-1.6A4.6 4.6 0 0 1 17 15.5Z"/><path d="M8.5 18.5 7.5 21M12.5 18.5l-1 2.5M16.5 18.5l-1 2.5"/>',
+ flag:'<path d="M6 21V4"/><path d="M6 4.5c1.5-1 3.5-1 5 0s3.5 1 5 0v8.5c-1.5 1-3.5 1-5 0s-3.5-1-5 0"/>'
 };
 function ic(name, size){
  size = size || 18;
@@ -916,7 +935,7 @@ const PLACES = {
   details:"Movimento maior à noite e em dias de romaria. Boa base para caminhar até o centro.",
   outdoor:true},
  cafe:{name:"Café Sabor da Serra", cat:"Café da manhã", time:"40 min", type:"restaurante",
-  img:"https://picsum.photos/seed/cafe-sabor-da-serra/900/600",
+  img:"https://dynamic-media-cdn.tripadvisor.com/media/photo-o/0e/86/ea/7e/santuario-lapa-hotel.jpg?w=900&h=-1&s=1",
   desc:"Café colonial com tapiocas, pães de queijo e frutas regionais.",
   details:"Faixa de preço: $$. Aceita cartão. Próximo ao centro histórico."},
  restaurante:{name:"Neide's Bar - Barrinha", cat:"Almoço", time:"70 min", type:"restaurante",
@@ -1066,7 +1085,8 @@ renderOptions('opt-goals', OPTIONS.goals, 'goals', true);
 function paintStaticIcons(){
  
  document.getElementById('btn-text').innerHTML = '<span style="font-family:var(--font-mono); font-size:.72rem; font-weight:700;">A+</span>';
- document.getElementById('btn-admin').innerHTML = ic('shield',16);
+ document.getElementById('btn-admin').innerHTML = ic('shield',16) + '<span class="admin-report-badge" id="admin-report-badge"></span>';
+ updateAdminBadge();
  document.getElementById('arrow-ic').innerHTML = ic('chevronRight',16);
  document.getElementById('weather-ic').innerHTML = ic('sun',18);
  document.getElementById('welcome-eyebrow').innerHTML = ic('pin',13) + '<span>Bom Jesus da Lapa · Bahia</span>';
@@ -2458,6 +2478,7 @@ let usersCache = {};
 let postsCache = [];
 let extrasCache = [];
 let overridesCache = {};
+let reportsCache = [];
 let communityDataReady = false;
 
 async function kvGet(key, fallback){
@@ -2472,16 +2493,18 @@ async function kvSet(key, value){
 }
 
 async function initCommunityData(){
- const [u, p, e, ov] = await Promise.all([
+ const [u, p, e, ov, rp] = await Promise.all([
   kvGet('lapa_community_users', {}),
   kvGet('lapa_community_posts', []),
   kvGet('lapa_admin_extras', []),
-  kvGet('lapa_admin_overrides', {})
+  kvGet('lapa_admin_overrides', {}),
+  kvGet('lapa_community_reports', [])
  ]);
  usersCache = u || {};
  postsCache = p || [];
  extrasCache = e || [];
  overridesCache = ov || {};
+ reportsCache = rp || [];
  communityDataReady = true;
 }
 
@@ -2493,6 +2516,7 @@ function startCommunityPolling(){
   if(commEl && !commEl.hidden && !commEl.classList.contains('hidden')) renderCommunity();
   const explEl = document.getElementById('explore');
   if(explEl && !explEl.hidden && !explEl.classList.contains('hidden') && typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
+  updateAdminBadge();
  }, 15000);
 }
 
@@ -2505,6 +2529,9 @@ function saveExtras(e){ extrasCache = e; kvSet('lapa_admin_extras', e).catch(()=
 function loadOverrides(){ return overridesCache; }
 function saveOverrides(o){ overridesCache = o; kvSet('lapa_admin_overrides', o).catch(()=>{ showToast('Não foi possível salvar (sem conexão)', 'alert'); }); }
 function getOverride(id){ return overridesCache[id] || {}; }
+function loadReports(){ return reportsCache; }
+function saveReports(r){ reportsCache = r; kvSet('lapa_community_reports', r).catch(()=>{ showToast('Não foi possível salvar (sem conexão)', 'alert'); }); }
+function pendingReportsCount(){ return loadReports().filter(r=>!r.resolved).length; }
 
 /* ---- selo de "explorador": gamificação leve para quem posta em vários lugares diferentes ---- */
 const EXPLORER_TIERS = [
@@ -2530,9 +2557,51 @@ function renderExplorerBadge(author){
 function getCurrentUser(){ try{ return localStorage.getItem('lapa_community_session') || null; }catch(e){ return null; } }
 function setCurrentUser(name){ try{ if(name) localStorage.setItem('lapa_community_session', name); else localStorage.removeItem('lapa_community_session'); }catch(e){} }
 
+/* ---- login com Google (via Supabase Auth) ----
+   Requer que o provedor Google esteja habilitado em:
+   Supabase > Authentication > Sign In / Providers > Google
+   (com Client ID/Secret do Google Cloud Console e a Redirect URL
+   do Supabase cadastrada no Google Cloud). */
+function loginWithGoogle(){
+ supabaseClient.auth.signInWithOAuth({
+  provider: 'google',
+  options: { redirectTo: window.location.href }
+ });
+}
+async function handleGoogleSession(session){
+ if(!session || !session.user) return;
+ const googleName = (session.user.user_metadata && (session.user.user_metadata.full_name || session.user.user_metadata.name)) || session.user.email;
+ const googleAvatar = session.user.user_metadata && session.user.user_metadata.avatar_url;
+ const key = googleName.toLowerCase();
+ const users = loadUsers();
+ if(!users[key]){
+  users[key] = { name: googleName, google: true };
+  if(googleAvatar) users[key].avatar = { photo: googleAvatar };
+  saveUsers(users);
+ } else if(!users[key].avatar && googleAvatar){
+  users[key].avatar = { photo: googleAvatar };
+  saveUsers(users);
+ }
+ setCurrentUser(users[key].name);
+ renderCommunity();
+}
+try{
+ supabaseClient.auth.onAuthStateChange((_event, session)=>{
+  if(communityDataReady) handleGoogleSession(session);
+ });
+}catch(e){}
+
 /* ---------------- área do administrador ---------------- */
 function isAdmin(){ try{ return localStorage.getItem('lapa_admin_session') === '1'; }catch(e){ return false; } }
 function setAdminSession(on){ try{ if(on) localStorage.setItem('lapa_admin_session', '1'); else localStorage.removeItem('lapa_admin_session'); }catch(e){} }
+function updateAdminBadge(){
+ const el = document.getElementById('admin-report-badge');
+ if(!el) return;
+ if(!isAdmin()){ el.classList.remove('on'); el.textContent=''; return; }
+ const n = pendingReportsCount();
+ if(n>0){ el.textContent = n>9?'9+':String(n); el.classList.add('on'); }
+ else { el.classList.remove('on'); el.textContent=''; }
+}
 function openAdmin(){
  renderAdminModal();
  document.getElementById('admin-overlay').classList.add('open');
@@ -2554,10 +2623,35 @@ function renderAdminModal(){
  }
  titleEl.textContent = 'Painel do administrador';
  const extras = loadExtras();
+ const reports = loadReports().filter(r=>!r.resolved).sort((a,b)=>b.ts-a.ts);
  bodyEl.innerHTML = `
   <div class="modal-sub">Você está logado como administrador. Pode gerenciar a Comunidade (editar ou apagar qualquer publicação e comentário) e adicionar novos itens ao Explorar.</div>
   <div class="nav-row"><button class="btn btn-ghost" style="flex:1;" onclick="logoutAdmin()">Sair da área do administrador</button></div>
   <div style="height:18px;"></div>
+  <div class="q-title" style="font-size:1.05rem; margin-bottom:10px;">${ic('flag',16)} Denúncias da Comunidade${reports.length?` (${reports.length})`:''}</div>
+  <div id="admin-reports-list">${
+   reports.length ? reports.map(r=>{
+    const stillExists = r.type==='post'
+     ? loadPosts().some(p=>p.id===r.postId)
+     : loadPosts().some(p=>p.id===r.postId && p.comments.some(c=>c.id===r.commentId));
+    return `
+    <div class="list-card" style="align-items:flex-start; flex-direction:column; gap:6px; padding:12px;">
+     <div class="post-meta" style="margin-bottom:0;">${ic(r.type==='post'?'camera':'message',13)}<span><b>${r.type==='post'?'Publicação':'Comentário'}</b> · denunciado por ${escapeHtml(r.reportedBy)} · ${timeAgo(r.ts)}</span></div>
+     <div class="sub" style="font-size:.82rem;">
+      ${r.type==='post'
+       ? `De <b>${escapeHtml(r.postAuthor)}</b> em ${escapeHtml(r.postPlace)}${r.postCaption?': "'+escapeHtml(r.postCaption.slice(0,80))+'"':''}`
+       : `De <b>${escapeHtml(r.commentAuthor)}</b>: "${escapeHtml((r.commentText||'').slice(0,120))}"`}
+     </div>
+     ${r.reason?`<div class="sub" style="font-size:.82rem;"><b>Motivo:</b> ${escapeHtml(r.reason)}</div>`:''}
+     ${!stillExists?`<div class="sub" style="font-size:.78rem; opacity:.7;">(conteúdo já foi removido)</div>`:''}
+     <div class="nav-row" style="width:100%; margin-top:2px;">
+      ${stillExists?`<button class="btn btn-ghost" style="flex:1; font-size:.82rem; padding:9px;" onclick="${r.type==='post'?`adminDeletePostFromReport('${r.id}','${r.postId}')`:`adminDeleteCommentFromReport('${r.id}','${r.postId}','${r.commentId}')`}">${ic('x',14)} Apagar conteúdo</button>`:''}
+      <button class="btn btn-ghost" style="flex:1; font-size:.82rem; padding:9px;" onclick="dismissReport('${r.id}')">${ic('check',14)} Descartar denúncia</button>
+     </div>
+    </div>`;
+   }).join('') : `<div class="welcome-note" style="text-align:left;">Nenhuma denúncia pendente.</div>`
+  }</div>
+  <div style="height:20px;"></div>
   <div class="q-title" style="font-size:1.05rem; margin-bottom:10px;">Adicionar novo item ao Explorar</div>
   <div class="form-field">
    <label>Categoria</label>
@@ -2614,6 +2708,7 @@ function submitAdminLogin(){
   setAdminSession(true);
   showToast('Login de administrador realizado', 'shield');
   renderAdminModal();
+  updateAdminBadge();
   if(document.getElementById('community') && !document.getElementById('community').classList.contains('hidden')) renderCommunity();
  } else {
   showToast('E-mail ou senha incorretos', 'alert');
@@ -2622,6 +2717,7 @@ function submitAdminLogin(){
 function logoutAdmin(){
  setAdminSession(false);
  renderAdminModal();
+ updateAdminBadge();
  showToast('Você saiu da área do administrador', 'x');
  if(document.getElementById('community') && !document.getElementById('community').classList.contains('hidden')) renderCommunity();
 }
@@ -2692,8 +2788,39 @@ function adminDeleteComment(postId, commentId){
  p.comments = p.comments.filter(x=>x.id!==commentId);
  savePosts(posts);
  renderPosts();
- const el = document.getElementById('comments-'+postId);
- if(el) el.style.display = 'block';
+ showToast('Comentário removido pelo administrador', 'x');
+}
+
+/* ---- admin: agir a partir de uma denúncia ---- */
+function resolveReport(reportId){
+ const reports = loadReports();
+ const r = reports.find(x=>x.id===reportId);
+ if(r) r.resolved = true;
+ saveReports(reports);
+ updateAdminBadge();
+}
+function dismissReport(reportId){
+ if(!isAdmin()) return;
+ resolveReport(reportId);
+ renderAdminModal();
+ showToast('Denúncia descartada', 'check');
+}
+function adminDeletePostFromReport(reportId, postId){
+ if(!isAdmin()) return;
+ savePosts(loadPosts().filter(x=>x.id!==postId));
+ resolveReport(reportId);
+ renderCommunity();
+ renderAdminModal();
+ showToast('Publicação removida pelo administrador', 'x');
+}
+function adminDeleteCommentFromReport(reportId, postId, commentId){
+ if(!isAdmin()) return;
+ const posts = loadPosts();
+ const p = posts.find(x=>x.id===postId);
+ if(p){ p.comments = p.comments.filter(x=>x.id!==commentId); savePosts(posts); }
+ resolveReport(reportId);
+ renderPosts();
+ renderAdminModal();
  showToast('Comentário removido pelo administrador', 'x');
 }
 
@@ -2727,6 +2854,7 @@ function submitAuth(){
 }
 function logoutCommunity(){
  setCurrentUser(null);
+ try{ supabaseClient.auth.signOut(); }catch(e){}
  renderCommunity();
 }
 
@@ -2854,7 +2982,12 @@ function renderCommunity(){
     <div class="form-field"><label>Nome</label><input type="text" id="auth-name" placeholder="Seu nome"></div>
     <div class="form-field"><label>Senha</label><input type="password" id="auth-pass" placeholder="Sua senha"></div>
     <div class="nav-row"><button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()">Entrar</button></div>
-    <div class="welcome-note" style="margin-top:10px;">Isso fica salvo apenas neste navegador — não é uma conta na internet.</div>
+    <div class="auth-divider"><span>ou</span></div>
+    <button class="btn btn-google" onclick="loginWithGoogle()">
+     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+     Entrar com Google
+    </button>
+    <div class="welcome-note" style="margin-top:10px;">O login com nome e senha fica salvo apenas neste navegador. O login com Google usa sua conta Google normalmente.</div>
    </div>`;
   if(isAdmin()){ feedEl.style.display=''; renderPosts(); } else { feedEl.innerHTML = ''; }
   return;
@@ -2903,6 +3036,7 @@ function renderPosts(){
    <div class="post-actions">
     <button class="post-action ${liked?'liked':''}" onclick="toggleLike('${p.id}')">${ic('heart',17)}<span>${p.likes.length}</span></button>
     <button class="post-action" onclick="toggleComments('${p.id}')">${ic('message',17)}<span>${p.comments.length}</span></button>
+    ${(!isOwner && !isAdmin())?`<button class="post-action" onclick="openReport('post','${p.id}')" title="Denunciar para o administrador" aria-label="Denunciar publicação">${ic('flag',16)}</button>`:''}
    </div>
    <div class="post-comments" id="comments-${p.id}" style="display:none;">
     ${p.comments.map(c=>{
@@ -2925,6 +3059,9 @@ function renderPosts(){
       </div>`:''}
       ${(!isCommentOwner && isAdmin())?`<div class="comment-own-actions">
        <button onclick="adminDeleteComment('${p.id}','${c.id}')" aria-label="Apagar comentário (admin)">${ic('x',14)}</button>
+      </div>`:''}
+      ${(!isCommentOwner && !isAdmin())?`<div class="comment-own-actions">
+       <button onclick="openReport('comment','${p.id}','${c.id}')" aria-label="Denunciar comentário" title="Denunciar para o administrador">${ic('flag',13)}</button>
       </div>`:''}
      </div>`;
     }).join('')}
@@ -3025,6 +3162,69 @@ function deleteComment(postId, commentId){
  showToast('Comentário apagado', 'x');
 }
 
+/* ---- denunciar publicação ou comentário para o administrador ---- */
+let reportTarget = null;
+function openReport(type, postId, commentId){
+ const user = getCurrentUser();
+ if(!user){ showToast('Entre na Comunidade para denunciar', 'alert'); return; }
+ const posts = loadPosts();
+ const p = posts.find(x=>x.id===postId);
+ if(!p) return;
+ let preview = '';
+ if(type==='post'){
+  preview = `<div class="post-meta" style="margin-bottom:10px;">${ic('camera',13)}<span>Publicação de <b>${escapeHtml(p.author)}</b> em ${escapeHtml(p.place)}${p.caption?': "'+escapeHtml(p.caption.slice(0,60))+(p.caption.length>60?'…':'')+'"':''}</span></div>`;
+ } else {
+  const c = p.comments.find(x=>x.id===commentId);
+  if(!c) return;
+  preview = `<div class="post-meta" style="margin-bottom:10px;">${ic('message',13)}<span>Comentário de <b>${escapeHtml(c.author)}</b>: "${escapeHtml(c.text.slice(0,80))}${c.text.length>80?'…':''}"</span></div>`;
+ }
+ reportTarget = {type, postId, commentId};
+ document.getElementById('report-body').innerHTML = `
+  <div class="modal-sub">Sua denúncia é enviada direto para o administrador do app, que pode revisar e remover o conteúdo.</div>
+  ${preview}
+  <div class="form-field"><label>Motivo (opcional)</label><textarea id="report-reason" placeholder="Ex: foto imprópria, ofensa, spam..."></textarea></div>
+  <div class="nav-row"><button class="btn btn-primary" style="width:100%;" onclick="submitReport()">${ic('flag',16)} Enviar denúncia</button></div>`;
+ document.getElementById('report-overlay').classList.add('open');
+}
+function closeReport(){
+ document.getElementById('report-overlay').classList.remove('open');
+ reportTarget = null;
+}
+function submitReport(){
+ const user = getCurrentUser();
+ if(!user || !reportTarget) return;
+ const posts = loadPosts();
+ const p = posts.find(x=>x.id===reportTarget.postId);
+ if(!p){ closeReport(); return; }
+ const reasonEl = document.getElementById('report-reason');
+ const reason = reasonEl ? reasonEl.value.trim() : '';
+ const report = {
+  id: 'r'+Date.now()+Math.random().toString(36).slice(2,7),
+  type: reportTarget.type,
+  postId: p.id,
+  postAuthor: p.author,
+  postPlace: p.place,
+  postCaption: p.caption || '',
+  reportedBy: user,
+  reason,
+  ts: Date.now(),
+  resolved: false
+ };
+ if(reportTarget.type==='comment'){
+  const c = p.comments.find(x=>x.id===reportTarget.commentId);
+  if(!c){ closeReport(); return; }
+  report.commentId = c.id;
+  report.commentAuthor = c.author;
+  report.commentText = c.text;
+ }
+ const reports = loadReports();
+ reports.push(report);
+ saveReports(reports);
+ closeReport();
+ updateAdminBadge();
+ showToast('Denúncia enviada ao administrador', 'flag');
+}
+
 /* ---- modal: nova publicação ---- */
 let newPostPhotoData = null;
 let newPostPresetPlace = null;
@@ -3108,11 +3308,16 @@ function submitNewPost(){
 paintStaticIcons();
 fetchRealWeather();
 setInterval(fetchRealWeather, 15*60*1000); // atualiza o clima a cada 15 minutos
-initCommunityData().then(()=>{
+initCommunityData().then(async ()=>{
+ try{
+  const {data} = await supabaseClient.auth.getSession();
+  if(data && data.session) await handleGoogleSession(data.session);
+ }catch(e){}
  const commEl = document.getElementById('community');
  if(commEl && !commEl.hidden && !commEl.classList.contains('hidden')) renderCommunity();
  const explEl = document.getElementById('explore');
  if(explEl && !explEl.hidden && !explEl.classList.contains('hidden') && typeof activeExploreTab !== 'undefined') renderExploreList(activeExploreTab);
+ updateAdminBadge();
 });
 startCommunityPolling();
 </script>

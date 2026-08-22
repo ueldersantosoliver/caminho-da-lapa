@@ -88,6 +88,24 @@ Depois de logado (fica salvo neste navegador/celular até você clicar em "Sair"
 - **Foto de perfil de verdade:** em "Editar foto" (Comunidade), qualquer romeiro agora pode enviar uma foto do próprio aparelho como avatar, além das opções antigas de cor + emoji (que continuam disponíveis como alternativa).
 - **Editar itens já existentes no Explorar:** o administrador agora vê um ícone de lápis em cada item das abas Turismo, Restaurantes, Hospedagem, Eventos e Serviços — inclusive os que já vinham prontos no app (Santuário, Gruta, hotéis, restaurantes etc). Ao clicar, dá pra alterar nome, localização, descrição e foto, e depois "Restaurar original" a qualquer momento caso queira desfazer.
 
+### Login com Google na Comunidade
+
+Agora existe um botão **"Entrar com Google"** na tela da Comunidade, além do login por nome + senha. Para ele funcionar, é preciso habilitar o provedor Google no Supabase (isso não vem pronto por padrão):
+
+1. No Google Cloud Console (https://console.cloud.google.com/), crie um projeto (ou use um existente) e em **APIs e Serviços > Credenciais**, crie um **ID do cliente OAuth** do tipo "Aplicativo da Web".
+2. No Supabase, vá em **Authentication > Sign In / Providers > Google**, ative o provedor e copie a **Callback URL (Redirect URL)** mostrada lá.
+3. Volte ao Google Cloud e cole essa Callback URL em **URIs de redirecionamento autorizados** da credencial OAuth. Copie o **Client ID** e o **Client Secret** gerados pelo Google e cole nos campos correspondentes no Supabase.
+4. Ainda no Supabase, em **Authentication > URL Configuration**, adicione a URL do seu app publicado (ex: `https://caminho-da-lapa.vercel.app`) tanto em **Site URL** quanto em **Redirect URLs**.
+5. Salve tudo e teste o botão "Entrar com Google" no app publicado.
+
+Quem entra com Google recebe um perfil na Comunidade automaticamente (usando o nome e a foto da conta Google), sem precisar criar senha.
+
+### Denunciar conteúdo para o administrador
+
+Na Comunidade, qualquer romeiro agora vê um ícone de bandeira nas publicações e comentários de outras pessoas (não aparece no seu próprio conteúdo). Ao clicar, abre um formulário simples para enviar uma denúncia ao administrador, com motivo opcional.
+
+As denúncias aparecem no topo do **Painel do administrador** (botão do escudo), numa seção "Denúncias da Comunidade". O escudo no topo do app também ganha uma bolinha vermelha com o número de denúncias pendentes, para o administrador não precisar ficar checando toda hora. De lá, dá pra apagar o conteúdo denunciado direto ou descartar a denúncia sem apagar nada.
+
 ### Limitações que valem saber
 - O "login" da comunidade continua sendo simples (nome + senha guardados em texto no banco) — bom o bastante para um app informal, mas não é autenticação de verdade.
 - Fotos são guardadas como imagem em base64 dentro do banco (perfis, publicações e itens do Explorar — limite de 4MB por foto). Funciona bem para uso moderado; se o app crescer muito, o ideal futuramente é migrar para o Supabase Storage (upload de arquivo de verdade).
